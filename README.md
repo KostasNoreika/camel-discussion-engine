@@ -91,10 +91,13 @@ docker-compose up --build
 - [x] Dependencies installed
 - [x] FastAPI skeleton
 
-⏳ **TASK-002**: CAMEL-AI Integration (In Progress)
-- [ ] Role creator
-- [ ] Discussion orchestrator
-- [ ] Consensus detector
+✅ **TASK-002**: CAMEL-AI Integration (Complete)
+- [x] OpenRouter client (llm_provider.py)
+- [x] Role creator with topic analysis
+- [x] Discussion orchestrator with AI-driven speaker selection
+- [x] Consensus detector
+- [x] Integration tests
+- [x] Manual testing script
 
 ⏳ **TASK-003**: FastAPI Bridge (Planned)
 - [ ] API endpoints

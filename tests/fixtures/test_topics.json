@@ -1,0 +1,27 @@
+{
+  "medical": [
+    "Best treatment for chronic migraine",
+    "Managing diabetes in elderly patients",
+    "Preventing cardiovascular disease through lifestyle changes"
+  ],
+  "technical": [
+    "Design scalable microservices architecture for e-commerce",
+    "Optimize database query performance in high-traffic applications",
+    "Choose between SQL and NoSQL for a social media platform"
+  ],
+  "business": [
+    "Market entry strategy for Lithuania",
+    "Cost reduction without layoffs in manufacturing",
+    "Digital transformation strategy for traditional retail"
+  ],
+  "scientific": [
+    "Ethical implications of AI in healthcare",
+    "Climate change mitigation strategies",
+    "Future of renewable energy technology"
+  ],
+  "simple": [
+    "Best programming language for beginners",
+    "How to improve team collaboration remotely",
+    "Choosing between Mac and Windows for development"
+  ]
+}
