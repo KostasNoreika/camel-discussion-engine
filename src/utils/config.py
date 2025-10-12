@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8007
     API_WORKERS: int = 4
+    DEBUG: bool = False
 
     # LLM API Keys
     OPENROUTER_API_KEY: str = ""

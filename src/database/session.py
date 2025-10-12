@@ -46,3 +46,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
+
+
+# Alias for consistency with routes code
+async_session = get_session

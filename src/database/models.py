@@ -40,6 +40,21 @@ class Message(Base):
     is_user = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     turn_number = Column(Integer, default=0)
+    metadata = Column(JSON, nullable=True)  # Additional data (timestamps, user_id, etc.)
 
     # Relationships
     discussion = relationship("Discussion", back_populates="messages")
+
+
+class AgentPerformance(Base):
+    """Agent performance metrics for monitoring and optimization"""
+    __tablename__ = "agent_performance"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    discussion_id = Column(String, ForeignKey("discussions.id"), nullable=False)
+    role_name = Column(String, nullable=False)  # Which agent
+    model = Column(String, nullable=False)  # Which LLM model
+    response_time_ms = Column(Integer, nullable=True)  # Response time in milliseconds
+    token_count = Column(Integer, nullable=True)  # Tokens used
+    cost_usd = Column(String, nullable=True)  # Cost in USD
+    created_at = Column(DateTime, default=datetime.utcnow)
