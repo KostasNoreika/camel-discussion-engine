@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  camel-api:
+    build: .
+    container_name: camel-discussion-api
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=sqlite:///./data/discussions.db
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.camel-api.rule=Host(`camel.noreika.lt`)"
+      - "traefik.http.routers.camel-api.entrypoints=web"
+      - "traefik.http.routers.camel-api.priority=1"
+      - "traefik.http.services.camel-api.loadbalancer.server.port=8007"
+    networks:
+      - coolify
+    restart: unless-stopped
+
+networks:
+  coolify:
+    external: true
