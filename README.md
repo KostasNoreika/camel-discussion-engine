@@ -46,7 +46,7 @@ source venv/bin/activate
 # Start API server
 python src/api/main.py
 
-# Visit http://localhost:8000/api/docs
+# Visit http://localhost:8007/api/docs
 ```
 
 ### 4. Run with Docker
@@ -55,7 +55,7 @@ python src/api/main.py
 # Build and start
 docker-compose up --build
 
-# Visit http://localhost:8000/api/docs
+# Visit http://localhost:8007/api/docs
 ```
 
 ## Project Structure
@@ -99,10 +99,15 @@ docker-compose up --build
 - [x] Integration tests
 - [x] Manual testing script
 
-⏳ **TASK-003**: FastAPI Bridge (Planned)
-- [ ] API endpoints
-- [ ] WebSocket server
-- [ ] Database integration
+✅ **TASK-003**: FastAPI Bridge (Complete)
+- [x] Discussion API routes (6 endpoints)
+- [x] Models API routes (5 endpoints)
+- [x] Roles API routes (5 endpoints)
+- [x] WebSocket server with multi-client support
+- [x] Database integration with async SQLAlchemy
+- [x] Background task execution
+- [x] API integration tests (26 test cases)
+- [x] Interactive WebSocket test script
 
 ⏳ **TASK-004**: Open WebUI Plugin (Planned)
 - [ ] UI components
@@ -125,13 +130,31 @@ docker-compose up --build
 - `GET /health` - Health check
 - `GET /api/docs` - API documentation
 
-### Discussion Endpoints (Coming Soon)
+### Discussion Endpoints
 
 - `POST /api/discussions/create` - Create new discussion
 - `GET /api/discussions/{id}` - Get discussion details
-- `POST /api/discussions/{id}/message` - Send message
-- `GET /api/discussions/{id}/messages` - Get all messages
+- `POST /api/discussions/{id}/message` - Send user message
+- `GET /api/discussions/{id}/messages` - Get message history (with pagination)
+- `POST /api/discussions/{id}/stop` - Stop ongoing discussion
+- `DELETE /api/discussions/{id}` - Delete discussion
 - `WS /ws/discussions/{id}` - WebSocket for real-time updates
+
+### Models Endpoints
+
+- `GET /api/models/` - List all available models
+- `GET /api/models/{id}` - Get model information
+- `GET /api/models/normalize/{name}` - Normalize model name
+- `GET /api/models/providers/list` - List providers
+- `POST /api/models/test` - Test model with prompt
+
+### Roles Endpoints
+
+- `POST /api/roles/preview` - Preview roles for a topic
+- `GET /api/roles/templates` - Get role templates
+- `GET /api/roles/templates/{id}` - Get specific template
+- `POST /api/roles/analyze-topic` - Analyze topic
+- `GET /api/roles/by-domain/{domain}` - Get roles by domain
 
 ## Example Use Case
 
