@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  camel-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: camel-discussion-api
+    restart: unless-stopped
+
+    # ❌ NO port exposure - Traefik handles all routing via localhost:80
+    # ports:
+    #   - "8007:8000"  # WRONG - don't expose ports
+
+    environment:
+      # API Keys (set via .env.production)
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+      # API Configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_WORKERS=${API_WORKERS:-2}
+      - DEBUG=${DEBUG:-false}
+
+      # Database
+      - DATABASE_URL=sqlite:////app/data/discussions.db
+
+      # CAMEL-AI Settings
+      - CAMEL_MAX_TURNS=${CAMEL_MAX_TURNS:-20}
+      - CAMEL_CONSENSUS_THRESHOLD=${CAMEL_CONSENSUS_THRESHOLD:-0.85}
+      - CAMEL_TIMEOUT_SECONDS=${CAMEL_TIMEOUT_SECONDS:-300}
+
+      # CORS (production domains only)
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://chat.noreika.lt,https://camel.noreika.lt}
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+
+      # Monitoring
+      - ENABLE_METRICS=${ENABLE_METRICS:-true}
+      - METRICS_PORT=${METRICS_PORT:-9090}
+
+    volumes:
+      # Persistent data
+      - camel_data:/app/data
+      - camel_logs:/app/logs
+
+    # ✅ Join Coolify network (REQUIRED)
+    networks:
+      - coolify
+
+    # ✅ Traefik labels for domain routing (REQUIRED)
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+
+      # HTTP Router
+      - "traefik.http.routers.camel-api.rule=Host(`camel.noreika.lt`)"
+      - "traefik.http.routers.camel-api.entrypoints=web,websecure"
+      - "traefik.http.routers.camel-api.tls=true"
+      - "traefik.http.routers.camel-api.tls.certresolver=cloudflare"
+      - "traefik.http.routers.camel-api.priority=1"
+
+      # Service (MUST specify internal port)
+      - "traefik.http.services.camel-api.loadbalancer.server.port=8000"
+
+      # Coolify management labels
+      - "coolify.managed=true"
+      - "coolify.application.name=camel-discussion-api"
+      - "coolify.application.description=Multi-Agent Discussion System with CAMEL-AI"
+      - "coolify.application.type=service"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Named volumes for persistence
+volumes:
+  camel_data:
+    driver: local
+    name: camel_data
+  camel_logs:
+    driver: local
+    name: camel_logs
+
+# External Coolify network (REQUIRED)
+networks:
+  coolify:
+    external: true
