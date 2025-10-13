@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAMEL Multi-Agent Discussion Viewer</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 40px);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .create-section {
+            background: #f8f9fa;
+            padding: 20px 24px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .create-section h2 {
+            font-size: 18px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .input-group select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .roles-section {
+            padding: 16px 24px;
+            background: #fff3cd;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .roles-section h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #856404;
+        }
+
+        .roles {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .role-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 2px solid;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .role-badge .model {
+            opacity: 0.7;
+            font-weight: normal;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            padding: 16px;
+            border-radius: 12px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.agent {
+            background: white;
+            border-left: 4px solid #667eea;
+        }
+
+        .message.user {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+
+        .message.system {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .message-header .author {
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .message-header .model-tag {
+            background: #e0e0e0;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .message-header .timestamp {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .message-content {
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .user-input-section {
+            padding: 20px 24px;
+            background: white;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .user-input-section input {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .user-input-section input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .status-bar {
+            padding: 12px 24px;
+            background: #d1ecf1;
+            border-top: 1px solid #bee5eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .status-bar.connected {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .status-bar.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .consensus-panel {
+            padding: 16px 24px;
+            background: #d1ecf1;
+            border-bottom: 1px solid #bee5eb;
+        }
+
+        .consensus-panel.reached {
+            background: #d4edda;
+            border-color: #c3e6cb;
+        }
+
+        .consensus-panel h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #0c5460;
+        }
+
+        .consensus-panel.reached h3 {
+            color: #155724;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                height: 100vh;
+                border-radius: 0;
+            }
+
+            body {
+                padding: 0;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 CAMEL Multi-Agent Discussion</h1>
+            <p>Dynamic AI discussions with emergent communication</p>
+        </div>
+
+        <div class="create-section" id="createSection">
+            <h2>Create New Discussion</h2>
+            <div class="input-group">
+                <input type="text" id="topicInput" placeholder="Enter discussion topic (e.g., 'Strategies for treating chronic migraine')" />
+                <select id="numAgentsSelect">
+                    <option value="2">2 Agents</option>
+                    <option value="3" selected>3 Agents</option>
+                    <option value="4">4 Agents</option>
+                    <option value="5">5 Agents</option>
+                    <option value="6">6 Agents</option>
+                </select>
+                <button class="btn btn-primary" onclick="createDiscussion()">Start Discussion</button>
+            </div>
+        </div>
+
+        <div class="roles-section hidden" id="rolesSection">
+            <h3>AI Agents</h3>
+            <div class="roles" id="rolesContainer"></div>
+        </div>
+
+        <div class="consensus-panel hidden" id="consensusPanel">
+            <h3>Consensus Status</h3>
+            <p id="consensusText">⏳ Discussion in progress...</p>
+        </div>
+
+        <div class="messages-container" id="messagesContainer">
+            <div class="message system">
+                👆 Enter a discussion topic above to start
+            </div>
+        </div>
+
+        <div class="user-input-section hidden" id="userInputSection">
+            <input type="text" id="userMessageInput" placeholder="Guide the discussion or ask questions..." />
+            <div class="actions">
+                <button class="btn btn-primary" onclick="sendMessage()">Send Message</button>
+                <button class="btn btn-secondary" onclick="stopDiscussion()">Stop Discussion</button>
+            </div>
+        </div>
+
+        <div class="status-bar" id="statusBar">
+            <div class="status-indicator">
+                <span class="status-dot"></span>
+                <span id="statusText">Ready</span>
+            </div>
+            <div id="discussionInfo"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://192.168.110.199:8007';
+        const WS_BASE = 'ws://192.168.110.199:8007';
+
+        let currentDiscussionId = null;
+        let websocket = null;
+
+        const colors = {
+            'gpt-4': '#10a37f',
+            'claude': '#cc785c',
+            'gemini': '#4285f4',
+            'gpt-3.5': '#74aa9c'
+        };
+
+        async function createDiscussion() {
+            const topic = document.getElementById('topicInput').value.trim();
+            const numAgents = parseInt(document.getElementById('numAgentsSelect').value);
+
+            if (!topic || topic.length < 10) {
+                alert('Please enter a topic (at least 10 characters)');
+                return;
+            }
+
+            updateStatus('Creating discussion...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/discussions/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic,
+                        num_agents: numAgents,
+                        user_id: 'viewer_user',
+                        max_turns: 20
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                currentDiscussionId = data.discussion_id;
+
+                // Hide create section
+                document.getElementById('createSection').classList.add('hidden');
+
+                // Show roles
+                displayRoles(data.roles);
+
+                // Show user input
+                document.getElementById('userInputSection').classList.remove('hidden');
+
+                // Connect WebSocket
+                connectWebSocket(currentDiscussionId);
+
+                // Add system message
+                addSystemMessage(`Discussion started: ${topic}`);
+
+                updateStatus('Connected', 'connected');
+                document.getElementById('discussionInfo').textContent = `Turn 0/20 | ID: ${currentDiscussionId.substring(0, 8)}`;
+
+            } catch (error) {
+                console.error('Error creating discussion:', error);
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function displayRoles(roles) {
+            const rolesContainer = document.getElementById('rolesContainer');
+            rolesContainer.innerHTML = '';
+
+            roles.forEach(role => {
+                const modelShort = role.model.split('/').pop();
+                const color = colors[modelShort] || '#666';
+
+                const badge = document.createElement('div');
+                badge.className = 'role-badge';
+                badge.style.borderColor = color;
+                badge.innerHTML = `
+                    <strong>${role.name}</strong>
+                    <span class="model">${modelShort}</span>
+                `;
+                rolesContainer.appendChild(badge);
+            });
+
+            document.getElementById('rolesSection').classList.remove('hidden');
+        }
+
+        function connectWebSocket(discussionId) {
+            websocket = new WebSocket(`${WS_BASE}/ws/discussions/${discussionId}`);
+
+            websocket.onopen = () => {
+                console.log('WebSocket connected');
+            };
+
+            websocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+
+            websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateStatus('WebSocket error', 'error');
+            };
+
+            websocket.onclose = () => {
+                console.log('WebSocket closed');
+                updateStatus('Disconnected', 'error');
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            switch (data.type) {
+                case 'connected':
+                    console.log('Connected to discussion:', data.discussion_id);
+                    break;
+
+                case 'agent_message':
+                    addAgentMessage(
+                        data.data.role_name,
+                        data.data.model,
+                        data.data.content,
+                        data.data.turn_number
+                    );
+                    document.getElementById('discussionInfo').textContent =
+                        `Turn ${data.data.turn_number}/20`;
+                    break;
+
+                case 'user_message':
+                    addUserMessage(data.data.content);
+                    break;
+
+                case 'consensus_update':
+                    updateConsensus(data.data);
+                    break;
+
+                case 'discussion_complete':
+                    handleDiscussionComplete(data.data);
+                    break;
+
+                case 'error':
+                    addSystemMessage(`Error: ${data.error}`);
+                    updateStatus('Error occurred', 'error');
+                    break;
+
+                case 'discussion_stopped':
+                    addSystemMessage('Discussion stopped by user');
+                    updateStatus('Stopped', 'info');
+                    break;
+            }
+        }
+
+        function addAgentMessage(roleName, model, content, turn) {
+            const messagesContainer = document.getElementById('messagesContainer');
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message agent';
+
+            const modelShort = model.split('/').pop();
+            const timestamp = new Date().toLocaleTimeString();
+
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="author">
+                        🤖 <strong>${roleName}</strong>
+                        <span class="model-tag">${modelShort}</span>
+                    </div>
+                    <div class="timestamp">${timestamp} | Turn ${turn}</div>
+                </div>
+                <div class="message-content">${content}</div>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addUserMessage(content) {
+            const messagesContainer = document.getElementById('messagesContainer');
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user';
+
+            const timestamp = new Date().toLocaleTimeString();
+
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <div class="author">
+                        👤 <strong>You</strong>
+                    </div>
+                    <div class="timestamp">${timestamp}</div>
+                </div>
+                <div class="message-content">${content}</div>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addSystemMessage(content) {
+            const messagesContainer = document.getElementById('messagesContainer');
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message system';
+            messageDiv.textContent = content;
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function updateConsensus(data) {
+            const consensusPanel = document.getElementById('consensusPanel');
+            const consensusText = document.getElementById('consensusText');
+
+            consensusPanel.classList.remove('hidden');
+
+            if (data.reached) {
+                consensusPanel.classList.add('reached');
+                consensusText.innerHTML = `
+                    ✅ <strong>Consensus Reached!</strong><br>
+                    Confidence: ${(data.confidence * 100).toFixed(0)}%<br>
+                    ${data.summary}
+                `;
+            } else {
+                consensusText.innerHTML = `
+                    ⏳ <strong>In Progress</strong> (${(data.confidence * 100).toFixed(0)}% confidence)<br>
+                    ${data.summary || 'Discussion ongoing...'}
+                `;
+            }
+        }
+
+        function handleDiscussionComplete(data) {
+            const consensusPanel = document.getElementById('consensusPanel');
+            const consensusText = document.getElementById('consensusText');
+
+            consensusPanel.classList.remove('hidden');
+            consensusPanel.classList.add('reached');
+
+            consensusText.innerHTML = `
+                ✅ <strong>Discussion Complete!</strong><br>
+                Total turns: ${data.total_turns}<br>
+                Consensus: ${data.consensus_reached ? 'Yes' : 'No'}<br>
+                ${data.final_summary}
+            `;
+
+            addSystemMessage('📊 Discussion completed');
+            updateStatus('Completed', 'connected');
+
+            // Disable inputs
+            document.getElementById('userMessageInput').disabled = true;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userMessageInput');
+            const content = input.value.trim();
+
+            if (!content || !currentDiscussionId) return;
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/api/discussions/${currentDiscussionId}/message`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            content,
+                            user_id: 'viewer_user'
+                        })
+                    }
+                );
+
+                if (response.ok) {
+                    input.value = '';
+                } else {
+                    alert('Failed to send message');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                alert('Error sending message');
+            }
+        }
+
+        async function stopDiscussion() {
+            if (!currentDiscussionId) return;
+
+            if (!confirm('Are you sure you want to stop this discussion?')) return;
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/api/discussions/${currentDiscussionId}/stop`,
+                    { method: 'POST' }
+                );
+
+                if (response.ok) {
+                    addSystemMessage('Discussion stopped by user');
+                    updateStatus('Stopped', 'info');
+                }
+            } catch (error) {
+                console.error('Error stopping discussion:', error);
+            }
+        }
+
+        function updateStatus(text, type = 'info') {
+            const statusBar = document.getElementById('statusBar');
+            const statusText = document.getElementById('statusText');
+
+            statusBar.className = `status-bar ${type}`;
+            statusText.textContent = text;
+        }
+
+        // Handle Enter key in inputs
+        document.getElementById('topicInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') createDiscussion();
+        });
+
+        document.getElementById('userMessageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
