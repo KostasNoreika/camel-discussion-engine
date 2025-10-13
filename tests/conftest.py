@@ -16,6 +16,9 @@ def pytest_configure(config):
         "markers", "integration: Integration tests (requires API key)"
     )
     config.addinivalue_line(
+        "markers", "e2e: End-to-end tests (requires running API)"
+    )
+    config.addinivalue_line(
         "markers", "slow: Slow tests (> 30 seconds)"
     )
     config.addinivalue_line(
