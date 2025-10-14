@@ -7,14 +7,15 @@ Tests discussion orchestration, turn management, and agent coordination.
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, call
 from datetime import datetime
-from src.camel_engine.orchestrator import Orchestrator, DiscussionState
+from src.camel_engine.orchestrator import DiscussionOrchestrator, Discussion
 from src.camel_engine.role_creator import RoleDefinition
 
 
 @pytest.fixture
 def orchestrator():
-    """Fixture providing Orchestrator instance"""
-    return Orchestrator()
+    """Fixture providing DiscussionOrchestrator instance with mock API key"""
+    mock_api_key = "test-api-key-mock"
+    return DiscussionOrchestrator(openrouter_api_key=mock_api_key)
 
 
 @pytest.fixture
@@ -25,19 +26,22 @@ def sample_roles():
             name="Expert A",
             expertise="Topic expertise A",
             perspective="Perspective A",
-            model="gpt-4"
+            model="gpt-4",
+            system_prompt="You are Expert A with expertise in Topic expertise A."
         ),
         RoleDefinition(
             name="Expert B",
             expertise="Topic expertise B",
             perspective="Perspective B",
-            model="claude-3-opus"
+            model="claude-3-opus",
+            system_prompt="You are Expert B with expertise in Topic expertise B."
         ),
         RoleDefinition(
             name="Expert C",
             expertise="Topic expertise C",
             perspective="Perspective C",
-            model="gemini-pro"
+            model="gemini-pro",
+            system_prompt="You are Expert C with expertise in Topic expertise C."
         )
     ]
 
@@ -109,14 +113,16 @@ async def test_start_discussion(orchestrator, sample_roles):
     """Test starting a discussion"""
     # Create discussion first
     discussion_id = "disc_test_123"
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
         roles=sample_roles,
         status="created",
         current_turn=0,
-        max_turns=10
+        max_turns=10,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
 
     with patch.object(orchestrator, '_run_discussion_turn') as mock_turn:
@@ -134,7 +140,7 @@ async def test_discussion_turn_management(orchestrator, sample_roles):
     discussion_id = "disc_test_456"
     max_turns = 5
 
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
@@ -160,7 +166,7 @@ async def test_discussion_stops_at_max_turns(orchestrator, sample_roles):
     discussion_id = "disc_test_789"
     max_turns = 3
 
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
@@ -185,14 +191,16 @@ async def test_send_user_message(orchestrator, sample_roles):
     """Test sending user message to discussion"""
     discussion_id = "disc_test_user_msg"
 
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
         roles=sample_roles,
         status="running",
         current_turn=2,
-        max_turns=10
+        max_turns=10,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
 
     user_message = "What about considering option X?"
@@ -215,14 +223,16 @@ async def test_stop_discussion(orchestrator, sample_roles):
     """Test stopping a running discussion"""
     discussion_id = "disc_test_stop"
 
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
         roles=sample_roles,
         status="running",
         current_turn=3,
-        max_turns=10
+        max_turns=10,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
 
     await orchestrator.stop_discussion(discussion_id)
@@ -236,14 +246,16 @@ async def test_get_discussion_messages(orchestrator, sample_roles):
     """Test retrieving discussion messages"""
     discussion_id = "disc_test_messages"
 
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
         roles=sample_roles,
         status="running",
         current_turn=2,
-        max_turns=10
+        max_turns=10,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
 
     # Add some test messages
@@ -268,14 +280,16 @@ async def test_get_discussion_messages_with_pagination(orchestrator, sample_role
     """Test message pagination"""
     discussion_id = "disc_test_pagination"
 
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
         roles=sample_roles,
         status="running",
         current_turn=10,
-        max_turns=20
+        max_turns=20,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
 
     # Add many messages
@@ -310,14 +324,16 @@ async def test_agent_mention_handling(orchestrator, sample_roles):
     """Test that agents can mention each other"""
     discussion_id = "disc_test_mentions"
 
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
         roles=sample_roles,
         status="running",
         current_turn=1,
-        max_turns=10
+        max_turns=10,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
 
     # Simulate agent mentioning another agent
@@ -338,14 +354,16 @@ async def test_consensus_detection(orchestrator, sample_roles):
     """Test that consensus is detected when agents agree"""
     discussion_id = "disc_test_consensus"
 
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
         roles=sample_roles,
         status="running",
         current_turn=5,
-        max_turns=10
+        max_turns=10,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
 
     # Add messages showing consensus
@@ -375,14 +393,16 @@ async def test_get_active_discussions(orchestrator):
     """Test retrieving list of active discussions"""
     # Create multiple discussions
     for i in range(5):
-        orchestrator._discussions[f"disc_{i}"] = DiscussionState(
+        orchestrator._discussions[f"disc_{i}"] = Discussion(
             id=f"disc_{i}",
             topic=f"Topic {i}",
             user_id="test-user",
             roles=[],
             status="running" if i < 3 else "completed",
             current_turn=i,
-            max_turns=10
+            max_turns=10,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
 
     active = orchestrator.get_active_discussions(user_id="test-user")
@@ -406,14 +426,16 @@ async def test_error_handling_llm_failure(orchestrator, sample_roles):
     """Test error handling when LLM fails during discussion"""
     discussion_id = "disc_test_llm_error"
 
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
         roles=sample_roles,
         status="running",
         current_turn=1,
-        max_turns=10
+        max_turns=10,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
 
     with patch.object(orchestrator, '_get_agent_response') as mock_response:
@@ -434,7 +456,7 @@ async def test_discussion_state_persistence(orchestrator, sample_roles):
     discussion_id = "disc_test_state"
 
     # Create discussion
-    orchestrator._discussions[discussion_id] = DiscussionState(
+    orchestrator._discussions[discussion_id] = Discussion(
         id=discussion_id,
         topic="Test topic",
         user_id="test-user",
