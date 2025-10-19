@@ -253,10 +253,10 @@ Return ONLY the name of the participant (exactly as listed above).
             messages = [{"role": "user", "content": prompt}]
 
             response = await self.llm_client.chat_completion(
-                model="openai/gpt-4",
+                model="openai/gpt-5-chat",  # Latest GPT-5 Chat for speaker selection
                 messages=messages,
                 temperature=0.5,
-                max_tokens=50
+                max_tokens=100  # Simple selection task, 100 is sufficient
             )
 
             # Find matching role
@@ -335,7 +335,7 @@ Return ONLY the name of the participant (exactly as listed above).
                 model=role.model,
                 messages=context_messages,
                 temperature=0.7,
-                max_tokens=500
+                max_tokens=800  # Sufficient for discussion messages with stable models
             )
 
             # Create message object
@@ -460,3 +460,123 @@ Return ONLY the name of the participant (exactly as listed above).
             disc_id for disc_id, disc in self.active_discussions.items()
             if disc.status == "active"
         ]
+
+    async def send_user_message(
+        self,
+        discussion_id: str,
+        content: str,
+        user_id: str = "default"
+    ) -> None:
+        """
+        Send a user message to an ongoing discussion
+
+        This allows users to inject messages into active discussions,
+        enabling human-in-the-loop interaction with AI agents.
+
+        Args:
+            discussion_id: Discussion identifier
+            content: User message content
+            user_id: User identifier (for validation)
+
+        Raises:
+            ValueError: If discussion not found or user not authorized
+        """
+        discussion = self.active_discussions.get(discussion_id)
+        if not discussion:
+            raise ValueError(f"Discussion {discussion_id} not found")
+
+        if discussion.user_id != user_id:
+            raise ValueError(f"User {user_id} not authorized for discussion {discussion_id}")
+
+        if discussion.status != "active":
+            raise ValueError(f"Cannot send message to {discussion.status} discussion")
+
+        # Create user message
+        user_message = DiscussionMessage(
+            id=len(discussion.messages) + 1,
+            discussion_id=discussion.id,
+            role_name="User",
+            model="human",
+            content=content,
+            is_user=True,
+            turn_number=discussion.current_turn,
+            created_at=datetime.utcnow()
+        )
+
+        self._add_message(discussion, user_message)
+
+        logger.info(
+            f"User message added to discussion {discussion_id[:8]}: "
+            f"{content[:50]}..."
+        )
+
+    async def stop_discussion(self, discussion_id: str) -> None:
+        """
+        Gracefully stop an active discussion
+
+        This terminates the discussion loop and marks it as stopped,
+        without generating a final summary.
+
+        Args:
+            discussion_id: Discussion identifier
+
+        Raises:
+            ValueError: If discussion not found
+        """
+        discussion = self.active_discussions.get(discussion_id)
+        if not discussion:
+            raise ValueError(f"Discussion {discussion_id} not found")
+
+        discussion.status = "stopped"
+        discussion.updated_at = datetime.utcnow()
+
+        logger.info(f"Discussion {discussion_id[:8]} stopped at turn {discussion.current_turn}")
+
+    async def get_discussion_messages(
+        self,
+        discussion_id: str,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[Dict]:
+        """
+        Retrieve messages from a discussion with pagination
+
+        Args:
+            discussion_id: Discussion identifier
+            limit: Maximum number of messages to return
+            offset: Number of messages to skip (for pagination)
+
+        Returns:
+            List of message dictionaries with role, content, and turn information
+
+        Raises:
+            ValueError: If discussion not found
+        """
+        discussion = self.active_discussions.get(discussion_id)
+        if not discussion:
+            raise ValueError(f"Discussion {discussion_id} not found")
+
+        # Extract paginated messages
+        start_idx = offset
+        end_idx = offset + limit
+        paginated_messages = discussion.messages[start_idx:end_idx]
+
+        # Convert DiscussionMessage objects to dictionaries
+        message_dicts = [
+            {
+                "role": msg.role_name,
+                "content": msg.content,
+                "turn": msg.turn_number,
+                "is_user": msg.is_user,
+                "model": msg.model,
+                "created_at": msg.created_at.isoformat()
+            }
+            for msg in paginated_messages
+        ]
+
+        logger.debug(
+            f"Retrieved {len(message_dicts)} messages from discussion {discussion_id[:8]} "
+            f"(offset={offset}, limit={limit})"
+        )
+
+        return message_dicts

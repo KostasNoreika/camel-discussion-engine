@@ -79,7 +79,17 @@ class OpenRouterClient:
                         f"Cost: ${usage.get('total_cost', 0):.4f}"
                     )
 
-                return result["choices"][0]["message"]["content"]
+                content = result["choices"][0]["message"]["content"]
+
+                # Warn if empty response
+                if not content or not content.strip():
+                    logger.warning(
+                        f"EMPTY RESPONSE from {model} | "
+                        f"Messages: {len(messages)} | "
+                        f"Full response: {result}"
+                    )
+
+                return content
 
         except httpx.HTTPStatusError as e:
             logger.error(f"OpenRouter API error: {e.response.status_code} - {e.response.text}")
@@ -177,13 +187,36 @@ class OpenRouterClient:
         Returns:
             OpenRouter-compatible model identifier
         """
+        # Latest 2025 model mappings (user-friendly names → OpenRouter IDs)
         model_mapping = {
-            "gpt-4": "openai/gpt-4",
-            "gpt-4-turbo": "openai/gpt-4-turbo",
-            "claude-3-opus": "anthropic/claude-3-opus",
-            "claude-3-sonnet": "anthropic/claude-3-sonnet",
-            "gemini-pro": "google/gemini-pro",
-            "gemini-ultra": "google/gemini-ultra",
+            # OpenAI (latest 2025)
+            # IMPORTANT: gpt-5 = o1-preview (reasoning mode, empty output)
+            # Use gpt-5-chat for normal chat completions
+            "gpt-4": "openai/gpt-5-chat",
+            "gpt-4o": "openai/gpt-5-chat",
+            "gpt-4-turbo": "openai/gpt-5-chat",
+            "gpt-5": "openai/gpt-5-chat",
+            "gpt-5-chat": "openai/gpt-5-chat",
+
+            # Anthropic (latest 2025)
+            "claude-3-opus": "anthropic/claude-sonnet-4.5",
+            "claude-3-sonnet": "anthropic/claude-sonnet-4.5",
+            "claude-3.5-sonnet": "anthropic/claude-sonnet-4.5",
+            "claude-4.5": "anthropic/claude-sonnet-4.5",
+            "claude-sonnet-4.5": "anthropic/claude-sonnet-4.5",
+
+            # Google (latest 2025)
+            "gemini-pro": "google/gemini-2.5-pro",
+            "gemini-1.5-pro": "google/gemini-2.5-pro",
+            "gemini-2.5-pro": "google/gemini-2.5-pro",
+            "gemini-ultra": "google/gemini-2.5-pro",
+
+            # DeepSeek (latest 2025)
+            "deepseek": "deepseek/deepseek-v3.2-exp",
+            "deepseek-chat": "deepseek/deepseek-v3.2-exp",
+            "deepseek-v3.2": "deepseek/deepseek-v3.2-exp",
+
+            # Others
             "mistral-large": "mistralai/mistral-large",
         }
 

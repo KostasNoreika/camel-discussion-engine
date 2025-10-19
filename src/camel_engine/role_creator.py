@@ -38,7 +38,7 @@ class RoleCreator:
     3. Create tailored system prompts
     """
 
-    def __init__(self, llm_client: OpenRouterClient, analysis_model: str = "openai/gpt-4"):
+    def __init__(self, llm_client: OpenRouterClient, analysis_model: str = "openai/gpt-5-chat"):
         self.llm_client = llm_client
         self.analysis_model = analysis_model
 
@@ -150,18 +150,19 @@ Example:
         Returns:
             List of role definitions (without system prompts yet)
         """
-        # Default model distribution if no preferences
+        # Default model distribution - LATEST 2025 models (CORRECT NAMES)
+        # Key fix: Use gpt-5-chat (not gpt-5 which is o1-preview with reasoning mode)
         if not model_preferences:
             model_preferences = [
-                "openai/gpt-4",
-                "anthropic/claude-3-opus",
-                "openai/gpt-4",  # Can reuse same model for different roles
-                "google/gemini-pro"
+                "anthropic/claude-sonnet-4.5",      # Claude Sonnet 4.5 - Latest
+                "openai/gpt-5-chat",                # GPT-5 Chat - Latest (no reasoning mode)
+                "google/gemini-2.5-pro",            # Gemini 2.5 Pro - Latest
+                "deepseek/deepseek-v3.2-exp"        # DeepSeek v3.2 Exp - Latest
             ]
 
-        # Ensure we have enough models
+        # Ensure we have enough models (cycle through latest ones)
         while len(model_preferences) < num_roles:
-            model_preferences.append("openai/gpt-4")
+            model_preferences.append("anthropic/claude-sonnet-4.5")
 
         prompt = f"""Based on this topic analysis, create {num_roles} expert roles for a discussion.
 
@@ -203,7 +204,18 @@ Example:
 
             # Parse response and create RoleDefinition objects
             roles = []
-            role_data = response if isinstance(response, list) else response.get("roles", [])
+
+            # Handle different response formats
+            if isinstance(response, list):
+                role_data = response
+            elif isinstance(response, dict):
+                # Check if it's a single role or has a 'roles' key
+                if "name" in response and "expertise" in response:
+                    role_data = [response]  # Single role object
+                else:
+                    role_data = response.get("roles", [])
+            else:
+                role_data = []
 
             for i, role_dict in enumerate(role_data[:num_roles]):
                 role = RoleDefinition(
@@ -214,6 +226,18 @@ Example:
                     system_prompt=""  # Will be filled later
                 )
                 roles.append(role)
+
+            # If we got fewer roles than requested, generate more
+            if len(roles) < num_roles:
+                logger.warning(f"LLM returned {len(roles)} roles, requested {num_roles}. Using fallback for remaining roles.")
+                for i in range(len(roles), num_roles):
+                    roles.append(RoleDefinition(
+                        name=f"Expert {i+1}",
+                        expertise=f"General expertise in {analysis.primary_domain}",
+                        perspective=f"Perspective {i+1}",
+                        model=model_preferences[i],
+                        system_prompt=""
+                    ))
 
             return roles
 

@@ -40,7 +40,7 @@ class ConsensusDetector:
     def __init__(
         self,
         llm_client: OpenRouterClient,
-        analysis_model: str = "openai/gpt-4",
+        analysis_model: str = "openai/gpt-5-chat",
         consensus_threshold: float = 0.85
     ):
         self.llm_client = llm_client
