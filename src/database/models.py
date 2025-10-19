@@ -40,7 +40,7 @@ class Message(Base):
     is_user = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     turn_number = Column(Integer, default=0)
-    metadata = Column(JSON, nullable=True)  # Additional data (timestamps, user_id, etc.)
+    extra_data = Column(JSON, nullable=True)  # Additional data (timestamps, user_id, etc.)
 
     # Relationships
     discussion = relationship("Discussion", back_populates="messages")

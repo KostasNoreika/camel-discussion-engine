@@ -13,12 +13,17 @@ from ...camel_engine.orchestrator import DiscussionOrchestrator
 from ...database.models import Discussion, Message
 from ...database.session import async_session
 from ..websocket.manager import manager as ws_manager
+from ...utils.config import settings
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 
 router = APIRouter()
-orchestrator = DiscussionOrchestrator()
+orchestrator = DiscussionOrchestrator(
+    openrouter_api_key=settings.OPENROUTER_API_KEY,
+    max_turns=settings.CAMEL_MAX_TURNS,
+    consensus_threshold=settings.CAMEL_CONSENSUS_THRESHOLD
+)
 
 
 # ============================================================================
@@ -146,7 +151,7 @@ async def create_discussion(
         )
 
         # Get created discussion details
-        discussion = await orchestrator.get_discussion(discussion_id)
+        discussion = orchestrator.get_discussion(discussion_id)
 
         # Save to database
         await save_discussion_to_db(discussion, request.user_id)
@@ -205,7 +210,7 @@ async def send_message(
         logger.info(f"User message to {discussion_id}: {request.content[:50]}...")
 
         # Verify discussion exists
-        discussion = await orchestrator.get_discussion(discussion_id)
+        discussion = orchestrator.get_discussion(discussion_id)
         if not discussion:
             raise HTTPException(status_code=404, detail="Discussion not found")
 
@@ -253,7 +258,7 @@ async def get_discussion(discussion_id: str):
     """
     try:
         # Check in-memory orchestrator first
-        discussion = await orchestrator.get_discussion(discussion_id)
+        discussion = orchestrator.get_discussion(discussion_id)
         if not discussion:
             # Try database
             db_discussion = await get_discussion_from_db(discussion_id)
@@ -274,13 +279,13 @@ async def get_discussion(discussion_id: str):
             )
 
         return DiscussionStatus(
-            discussion_id=discussion.discussion_id,
+            discussion_id=discussion.id,
             topic=discussion.topic,
             status=discussion.status,
             current_turn=discussion.current_turn,
-            max_turns=discussion.max_turns,
+            max_turns=20,  # Default max_turns since it's not stored in Discussion model
             consensus_reached=discussion.consensus_reached,
-            consensus_confidence=discussion.consensus_confidence,
+            consensus_confidence=None,  # Not available in in-memory Discussion model
             message_count=len(discussion.messages),
             created_at=discussion.created_at.isoformat() if discussion.created_at else datetime.utcnow().isoformat(),
             updated_at=discussion.updated_at.isoformat() if discussion.updated_at else datetime.utcnow().isoformat()
@@ -329,7 +334,7 @@ async def get_messages(
                 content=msg.content,
                 is_user=bool(msg.is_user),
                 created_at=msg.created_at.isoformat(),
-                metadata=msg.metadata
+                metadata=msg.extra_data  # Renamed from metadata to extra_data in DB model
             )
             for msg in messages
         ]
@@ -463,7 +468,7 @@ async def run_discussion_background(discussion_id: str, max_turns: Optional[int]
                 is_user=False,
                 metadata={
                     "turn": message.turn_number,
-                    "timestamp": message.timestamp.isoformat() if message.timestamp else None
+                    "timestamp": message.created_at.isoformat() if message.created_at else None
                 }
             )
 
@@ -516,7 +521,7 @@ async def save_discussion_to_db(discussion, user_id: str):
     try:
         async with async_session() as session:
             db_discussion = Discussion(
-                id=discussion.discussion_id,
+                id=discussion.id,
                 topic=discussion.topic,
                 user_id=user_id,
                 status="running",
@@ -526,7 +531,7 @@ async def save_discussion_to_db(discussion, user_id: str):
             )
             session.add(db_discussion)
             await session.commit()
-            logger.debug(f"Saved discussion {discussion.discussion_id} to database")
+            logger.debug(f"Saved discussion {discussion.id} to database")
     except Exception as e:
         logger.error(f"Failed to save discussion to database: {e}", exc_info=True)
         raise
@@ -550,7 +555,7 @@ async def save_message_to_db(
                 content=content,
                 is_user=1 if is_user else 0,
                 created_at=datetime.utcnow(),
-                metadata=metadata
+                extra_data=metadata  # Renamed from metadata to extra_data in DB model
             )
             session.add(message)
             await session.commit()

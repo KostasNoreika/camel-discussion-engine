@@ -8,11 +8,13 @@ from pydantic import BaseModel, Field
 from loguru import logger
 
 from ...camel_engine.role_creator import RoleCreator, RoleDefinition
+from ...camel_engine.llm_provider import OpenRouterClient
 from ...utils.config import settings
 
 
 router = APIRouter()
-role_creator = RoleCreator(settings.OPENROUTER_API_KEY)
+llm_client = OpenRouterClient(api_key=settings.OPENROUTER_API_KEY)
+role_creator = RoleCreator(llm_client=llm_client)
 
 
 # ============================================================================
@@ -59,6 +61,18 @@ class RoleTemplate(BaseModel):
     perspective: str
     applicable_topics: List[str]
     example_use_cases: List[str]
+
+
+class AnalyzeTopicRequest(BaseModel):
+    """Request to analyze a topic"""
+    topic: str = Field(..., min_length=10, max_length=500, description="Topic to analyze")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "topic": "What are the implications of artificial intelligence in healthcare?"
+            }
+        }
 
 
 # ============================================================================
@@ -269,11 +283,11 @@ async def get_role_template(template_id: str):
 
 
 @router.post("/analyze-topic")
-async def analyze_topic(topic: str = Field(..., min_length=10, max_length=500)):
+async def analyze_topic(request: AnalyzeTopicRequest):
     """
     Analyze a topic to understand domain and complexity
 
-    Query Parameters:
+    Request Body:
     - topic: Discussion topic
 
     Returns:
@@ -285,12 +299,12 @@ async def analyze_topic(topic: str = Field(..., min_length=10, max_length=500)):
     This helps understand what types of roles would be most appropriate.
     """
     try:
-        logger.info(f"Analyzing topic: {topic}")
+        logger.info(f"Analyzing topic: {request.topic}")
 
-        analysis = await role_creator.analyze_topic(topic)
+        analysis = await role_creator.analyze_topic(request.topic)
 
         return {
-            "topic": topic,
+            "topic": request.topic,
             "domain": analysis.domain,
             "complexity": analysis.complexity,
             "key_aspects": analysis.key_aspects,

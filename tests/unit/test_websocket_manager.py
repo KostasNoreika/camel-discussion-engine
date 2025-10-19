@@ -155,15 +155,21 @@ async def test_send_personal_message(connection_manager, mock_websocket):
     """Test sending personal message to specific client"""
     discussion_id = "disc_test_personal"
 
-    mock_websocket.send_text = AsyncMock()
-
     await connection_manager.connect(mock_websocket, discussion_id)
 
     message = {"type": "personal", "data": "just for you"}
 
     await connection_manager.send_personal_message(mock_websocket, message)
 
-    mock_websocket.send_text.assert_called_once_with(json.dumps(message))
+    # send_personal_message uses send_json(), not send_text()
+    # Note: send_json is called twice - once by connect() for welcome message, once by our call
+    assert mock_websocket.send_json.call_count == 2
+
+    # Check the second call (our personal message)
+    sent_data = mock_websocket.send_json.call_args_list[1][0][0]
+    assert sent_data["type"] == "personal"
+    assert sent_data["data"] == "just for you"
+    assert "timestamp" in sent_data  # Timestamp is added automatically
 
 
 @pytest.mark.asyncio
@@ -175,7 +181,8 @@ async def test_send_agent_message(connection_manager):
 
     await connection_manager.connect(ws, discussion_id)
 
-    await connection_manager.send_agent_message(
+    # Method is actually broadcast_agent_message, not send_agent_message
+    await connection_manager.broadcast_agent_message(
         discussion_id=discussion_id,
         role_name="Expert A",
         model="gpt-4",
@@ -203,11 +210,14 @@ async def test_send_consensus_update(connection_manager):
 
     await connection_manager.connect(ws, discussion_id)
 
-    await connection_manager.send_consensus_update(
+    # Method is actually broadcast_consensus_update, not send_consensus_update
+    await connection_manager.broadcast_consensus_update(
         discussion_id=discussion_id,
         reached=True,
         confidence=0.95,
-        summary="All experts agree on option X"
+        summary="All experts agree on option X",
+        agreements=["Point 1", "Point 2"],
+        disagreements=[]
     )
 
     ws.send_text.assert_called_once()
@@ -217,6 +227,8 @@ async def test_send_consensus_update(connection_manager):
     assert sent_data["data"]["reached"] is True
     assert sent_data["data"]["confidence"] == 0.95
     assert sent_data["data"]["summary"] == "All experts agree on option X"
+    assert sent_data["data"]["agreements"] == ["Point 1", "Point 2"]
+    assert sent_data["data"]["disagreements"] == []
 
 
 @pytest.mark.asyncio
@@ -228,7 +240,8 @@ async def test_send_discussion_complete(connection_manager):
 
     await connection_manager.connect(ws, discussion_id)
 
-    await connection_manager.send_discussion_complete(
+    # Method is actually broadcast_discussion_complete, not send_discussion_complete
+    await connection_manager.broadcast_discussion_complete(
         discussion_id=discussion_id,
         total_turns=12,
         consensus_reached=True,
@@ -242,6 +255,7 @@ async def test_send_discussion_complete(connection_manager):
     assert sent_data["data"]["total_turns"] == 12
     assert sent_data["data"]["consensus_reached"] is True
     assert sent_data["data"]["final_summary"] == "Discussion concluded with consensus."
+    assert sent_data["data"]["status"] == "completed"
 
 
 @pytest.mark.asyncio
@@ -257,7 +271,10 @@ async def test_disconnect_all_for_discussion(connection_manager):
     await connection_manager.connect(ws2, discussion_id)
     await connection_manager.connect(ws3, discussion_id)
 
-    await connection_manager.disconnect_all(discussion_id)
+    # disconnect_all() is for global shutdown, not per-discussion
+    # To disconnect all clients from a specific discussion, use individual disconnect calls
+    for ws in [ws1, ws2, ws3]:
+        await connection_manager.disconnect(ws, discussion_id)
 
     # All connections should be removed
     assert discussion_id not in connection_manager.active_connections or \
@@ -412,8 +429,6 @@ async def test_heartbeat_ping(connection_manager, mock_websocket):
     """Test sending heartbeat ping to maintain connection"""
     discussion_id = "disc_test_ping"
 
-    mock_websocket.send_text = AsyncMock()
-
     await connection_manager.connect(mock_websocket, discussion_id)
 
     await connection_manager.send_personal_message(
@@ -421,6 +436,11 @@ async def test_heartbeat_ping(connection_manager, mock_websocket):
         {"type": "ping"}
     )
 
-    mock_websocket.send_text.assert_called_once()
-    sent_data = json.loads(mock_websocket.send_text.call_args[0][0])
+    # send_personal_message uses send_json(), not send_text()
+    # Note: send_json is called twice - once by connect() for welcome message, once for ping
+    assert mock_websocket.send_json.call_count == 2
+
+    # Check the second call (our ping message)
+    sent_data = mock_websocket.send_json.call_args_list[1][0][0]
     assert sent_data["type"] == "ping"
+    assert "timestamp" in sent_data  # Timestamp is added automatically
